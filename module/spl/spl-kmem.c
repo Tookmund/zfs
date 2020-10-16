@@ -28,6 +28,8 @@
 #include <sys/vmem.h>
 #include <linux/mm.h>
 
+#define ZFSNUMANODE	1
+
 /*
  * As a general rule kmem_alloc() allocations should be small, preferably
  * just a few pages since they must by physically contiguous.  Therefore, a
@@ -396,11 +398,11 @@ spl_kmem_alloc(size_t size, int flags, const char *func, int line)
 	ASSERT0(flags & ~KM_PUBLIC_MASK);
 
 #if !defined(DEBUG_KMEM)
-	return (spl_kmem_alloc_impl(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_impl(size, flags, ZFSNUMANODE));
 #elif !defined(DEBUG_KMEM_TRACKING)
-	return (spl_kmem_alloc_debug(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_debug(size, flags, ZFSNUMANODE));
 #else
-	return (spl_kmem_alloc_track(size, flags, func, line, NUMA_NO_NODE));
+	return (spl_kmem_alloc_track(size, flags, func, line, ZFSNUMANODE));
 #endif
 }
 EXPORT_SYMBOL(spl_kmem_alloc);
@@ -413,11 +415,11 @@ spl_kmem_zalloc(size_t size, int flags, const char *func, int line)
 	flags |= KM_ZERO;
 
 #if !defined(DEBUG_KMEM)
-	return (spl_kmem_alloc_impl(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_impl(size, flags, ZFSNUMANODE));
 #elif !defined(DEBUG_KMEM_TRACKING)
-	return (spl_kmem_alloc_debug(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_debug(size, flags, ZFSNUMANODE));
 #else
-	return (spl_kmem_alloc_track(size, flags, func, line, NUMA_NO_NODE));
+	return (spl_kmem_alloc_track(size, flags, func, line, ZFSNUMANODE));
 #endif
 }
 EXPORT_SYMBOL(spl_kmem_zalloc);
