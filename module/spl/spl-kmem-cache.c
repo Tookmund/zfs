@@ -116,10 +116,16 @@ module_param(spl_kmem_cache_max_size, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_cache_max_size, "Maximum size of slab in MB");
 
 /*
- * Set to the maximum size of an unsigned int to effectively disable
- * SPL slabs.
+ * For small objects the Linux slab allocator should be used to make the most
+ * efficient use of the memory.  However, large objects are not supported by
+ * the Linux slab and therefore the SPL implementation is preferred.  A cutoff
+ * of 16K was determined to be optimal for architectures using 4K pages.
  */
-unsigned int spl_kmem_cache_slab_limit = 4294967295;
+#if PAGE_SIZE == 4096
+unsigned int spl_kmem_cache_slab_limit = 16384;
+#else
+unsigned int spl_kmem_cache_slab_limit = 0;
+#endif
 module_param(spl_kmem_cache_slab_limit, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_cache_slab_limit,
 	"Objects less than N bytes use the Linux slab");
