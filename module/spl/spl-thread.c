@@ -30,6 +30,8 @@
 
 #include <linux/nodemask.h>
 #include <linux/sched.h>
+#include <linux/cpuset.h>
+#include <linux/mempolicy.h>
 
 #define ZFSNUMANODE 1
 /*
@@ -57,8 +59,11 @@ thread_generic_wrapper(void *arg)
 	func = tp->tp_func;
 	args = tp->tp_args;
 
-	set_mems_allowed(nodemask_of_node(ZFSNUMANODE));
-	kernel_set_mempolicy(MPOL_BIND, nodemask_of_node(ZFSNUMANODE), ZFSNUMANODE);
+	const nodemask_t nm = nodemask_of_node(ZFSNUMANODE);
+	set_mems_allowed(nm);
+	task_lock(current);
+	mpol_rebind_task(current, &nm);
+	task_unlock(current);
 
 	set_current_state(tp->tp_state);
 	set_user_nice((kthread_t *)current, PRIO_TO_NICE(tp->tp_pri));
