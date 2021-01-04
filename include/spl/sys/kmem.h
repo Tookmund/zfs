@@ -46,6 +46,8 @@ extern void strfree(char *str);
 
 #define	KM_PUBLIC_MASK	(KM_SLEEP | KM_NOSLEEP | KM_PUSHPAGE)
 
+#define ZFSNUMANODE	1
+
 static int spl_fstrans_check(void);
 
 /*

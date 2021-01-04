@@ -128,6 +128,19 @@ __thread_create(caddr_t stk, size_t  stksize, thread_func_t func,
 }
 EXPORT_SYMBOL(__thread_create);
 
+static inline void set_task_mems_allowed(struct task_struct *tsk, nodemask_t nodemask)
+{
+    unsigned long flags;
+
+    task_lock(tsk);
+    local_irq_save(flags);
+    write_seqcount_begin(&tsk->mems_allowed_seq);
+    tsk->mems_allowed = nodemask;
+    write_seqcount_end(&tsk->mems_allowed_seq);
+    local_irq_restore(flags);
+    task_unlock(tsk);
+}
+
 /*
  * spl_kthread_create - Wrapper providing pre-3.13 semantics for
  * kthread_create() in which it is not killable and less likely
@@ -144,7 +157,7 @@ spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
 	vsnprintf(name, sizeof (name), namefmt, args);
 	va_end(args);
 	do {
-		tsk = kthread_create(func, data, "%s", name);
+		tsk = kthread_create_on_node(func, data, ZFSNUMANODE, "%s", name);
 		if (IS_ERR(tsk)) {
 			if (signal_pending(current)) {
 				clear_thread_flag(TIF_SIGPENDING);
@@ -154,6 +167,9 @@ spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
 				continue;
 			return (NULL);
 		} else {
+			printk("SPL: LOCKING THREAD %s TO NUMA NODE %d!\n", name, ZFSNUMANODE);
+			set_cpus_allowed_ptr(tsk, cpumask_of_node(ZFSNUMANODE));
+			set_task_mems_allowed(tsk, nodemask_of_node(ZFSNUMANODE));
 			return (tsk);
 		}
 	} while (1);

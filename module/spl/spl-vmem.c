@@ -84,11 +84,11 @@ spl_vmem_alloc(size_t size, int flags, const char *func, int line)
 	flags |= KM_VMEM;
 
 #if !defined(DEBUG_KMEM)
-	return (spl_kmem_alloc_impl(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_impl(size, flags, ZFSNUMANODE));
 #elif !defined(DEBUG_KMEM_TRACKING)
-	return (spl_kmem_alloc_debug(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_debug(size, flags, ZFSNUMANODE));
 #else
-	return (spl_kmem_alloc_track(size, flags, func, line, NUMA_NO_NODE));
+	return (spl_kmem_alloc_track(size, flags, func, line, ZFSNUMANODE));
 #endif
 }
 EXPORT_SYMBOL(spl_vmem_alloc);
@@ -101,11 +101,11 @@ spl_vmem_zalloc(size_t size, int flags, const char *func, int line)
 	flags |= (KM_VMEM | KM_ZERO);
 
 #if !defined(DEBUG_KMEM)
-	return (spl_kmem_alloc_impl(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_impl(size, flags, ZFSNUMANODE));
 #elif !defined(DEBUG_KMEM_TRACKING)
-	return (spl_kmem_alloc_debug(size, flags, NUMA_NO_NODE));
+	return (spl_kmem_alloc_debug(size, flags, ZFSNUMANODE));
 #else
-	return (spl_kmem_alloc_track(size, flags, func, line, NUMA_NO_NODE));
+	return (spl_kmem_alloc_track(size, flags, func, line, ZFSNUMANODE));
 #endif
 }
 EXPORT_SYMBOL(spl_vmem_zalloc);
