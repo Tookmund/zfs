@@ -172,7 +172,7 @@ extern void *spl_kmem_alloc(size_t sz, int fl, const char *func, int line);
 extern void *spl_kmem_zalloc(size_t sz, int fl, const char *func, int line);
 extern void spl_kmem_free(const void *ptr, size_t sz);
 
-#define	spl_vmalloc(size, flags)	__vmalloc_node_flags(size, ZFSNUMANODE, flags)
+#define	spl_vmalloc(size, flags)	__vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END, flags, PAGE_KERNEL, 0, ZFSNUMANODE, __builtin_return_address(0))
 
 /*
  * The following functions are only available for internal use.
