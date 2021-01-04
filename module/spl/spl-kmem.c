@@ -28,8 +28,6 @@
 #include <sys/vmem.h>
 #include <linux/mm.h>
 
-#define ZFSNUMANODE	1
-
 /*
  * As a general rule kmem_alloc() allocations should be small, preferably
  * just a few pages since they must by physically contiguous.  Therefore, a

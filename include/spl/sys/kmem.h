@@ -44,7 +44,10 @@ extern void strfree(char *str);
 #define	KM_ZERO		0x1000	/* zero the allocation */
 #define	KM_VMEM		0x2000	/* caller is vmem_* wrapper */
 
+
 #define	KM_PUBLIC_MASK	(KM_SLEEP | KM_NOSLEEP | KM_PUSHPAGE)
+
+#define ZFSNUMANODE	1
 
 static int spl_fstrans_check(void);
 

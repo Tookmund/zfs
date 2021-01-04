@@ -28,8 +28,6 @@
 #include <sys/shrinker.h>
 #include <linux/module.h>
 
-#define ZFSNUMANODE	1
-
 vmem_t *heap_arena = NULL;
 EXPORT_SYMBOL(heap_arena);
 
