@@ -56,6 +56,10 @@ thread_generic_wrapper(void *arg)
 	ASSERT(tp->tp_magic == TP_MAGIC);
 	func = tp->tp_func;
 	args = tp->tp_args;
+
+	set_mems_allowed(nodemask_of_node(ZFSNUMANODE));
+	kernel_set_mempolicy(MPOL_BIND, nodemask_of_node(ZFSNUMANODE), ZFSNUMANODE);
+
 	set_current_state(tp->tp_state);
 	set_user_nice((kthread_t *)current, PRIO_TO_NICE(tp->tp_pri));
 	kmem_free(tp->tp_name, tp->tp_name_size);
@@ -132,19 +136,6 @@ __thread_create(caddr_t stk, size_t  stksize, thread_func_t func,
 }
 EXPORT_SYMBOL(__thread_create);
 
-static inline void
-set_kthread_mems_allowed(struct task_struct *task, nodemask_t nodemask)
-{
-	unsigned long flags;
-	task_lock(task);
-	local_irq_save(flags);
-	write_seqcount_begin(&task->mems_allowed_seq);
-	task->mems_allowed = nodemask;
-	write_seqcount_end(&task->mems_allowed_seq);
-	local_irq_restore(flags);
-	task_unlock(task);
-}
-
 /*
  * spl_kthread_create - Wrapper providing pre-3.13 semantics for
  * kthread_create() in which it is not killable and less likely
@@ -173,7 +164,6 @@ spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
 		} else {
 			printk("SPL: LOCKING THREAD %s TO NUMA NODE %d!\n", name, ZFSNUMANODE);
 			set_cpus_allowed_ptr(tsk, cpumask_of_node(ZFSNUMANODE));
-			set_kthread_mems_allowed(tsk, nodemask_of_node(ZFSNUMANODE));
 			return (tsk);
 		}
 	} while (1);
