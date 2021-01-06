@@ -129,22 +129,21 @@ __thread_create(caddr_t stk, size_t  stksize, thread_func_t func,
 EXPORT_SYMBOL(__thread_create);
 
 /*
- * spl_kthread_create - Wrapper providing pre-3.13 semantics for
- * kthread_create() in which it is not killable and less likely
+ * spl_kthread_create{,_on_node} - Wrapper providing pre-3.13 semantics for
+ * kthread_create{,_on_node}() in which it is not killable and less likely
  * to return -ENOMEM.
  */
 struct task_struct *
-spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
+spl_kthread_create_on_node_va(int (*func)(void *), void *data, int node,
+		const char namefmt[], va_list args)
 {
 	struct task_struct *tsk;
-	va_list args;
 	char name[TASK_COMM_LEN];
 
-	va_start(args, namefmt);
 	vsnprintf(name, sizeof (name), namefmt, args);
 	va_end(args);
 	do {
-		tsk = kthread_create(func, data, "%s", name);
+		tsk = kthread_create_on_node(func, data, node, "%s", name);
 		if (IS_ERR(tsk)) {
 			if (signal_pending(current)) {
 				clear_thread_flag(TIF_SIGPENDING);
@@ -154,8 +153,30 @@ spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
 				continue;
 			return (NULL);
 		} else {
+			if (node != NUMA_NO_NODE) {
+				set_cpus_allowed_ptr(tsk, cpumask_of_node(node));
+			}
 			return (tsk);
 		}
 	} while (1);
+}
+
+struct task_struct *
+spl_kthread_create_on_node(int (*func)(void *), void *data, int node,
+		const char namefmt[], ...)
+{
+	va_list args;
+	va_start(args, namefmt);
+	return spl_kthread_create_on_node_va(func, data, node, namefmt, args);
+}
+EXPORT_SYMBOL(spl_kthread_create_on_node);
+
+struct task_struct *
+spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
+{
+	va_list args;
+	va_start(args, namefmt);
+	return spl_kthread_create_on_node_va(func, data, NUMA_NO_NODE, namefmt,
+			args);
 }
 EXPORT_SYMBOL(spl_kthread_create);
