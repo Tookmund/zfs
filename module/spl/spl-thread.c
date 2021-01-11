@@ -162,7 +162,6 @@ spl_kthread_create(int (*func)(void *), void *data, const char namefmt[], ...)
 				continue;
 			return (NULL);
 		} else {
-			printk("SPL: LOCKING THREAD %s TO NUMA NODE %d!\n", name, ZFSNUMANODE);
 			set_cpus_allowed_ptr(tsk, cpumask_of_node(ZFSNUMANODE));
 			return (tsk);
 		}
