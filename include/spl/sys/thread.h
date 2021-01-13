@@ -54,6 +54,7 @@ typedef void (*thread_func_t)(void *);
 #define	thread_exit()			__thread_exit()
 #define	thread_join(t)			VERIFY(0)
 #define	curthread			current
+#define	curnode				cpu_to_node(current->cpu)
 #define	getcomm()			current->comm
 #define	getpid()			current->pid
 
