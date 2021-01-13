@@ -32,7 +32,6 @@
 #include <linux/sched.h>
 #include <linux/cpuset.h>
 
-#define ZFSNUMANODE 1
 /*
  * Thread interfaces
  */
