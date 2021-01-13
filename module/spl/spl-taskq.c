@@ -611,6 +611,15 @@ out:
 EXPORT_SYMBOL(taskq_dispatch);
 
 taskqid_t
+numa_taskq_dispatch(numa_taskq_t *ntq, task_func_t func, void *arg,
+		uint_t flags)
+{
+	return taskq_dispatch(ntq->tq[curnode], func, arg,
+			flags);
+}
+EXPORT_SYMBOL(numa_taskq_dispatch);
+
+taskqid_t
 taskq_dispatch_delay(taskq_t *tq, task_func_t func, void *arg,
     uint_t flags, clock_t expire_time)
 {
@@ -655,6 +664,15 @@ out:
 	return (rc);
 }
 EXPORT_SYMBOL(taskq_dispatch_delay);
+
+taskqid_t
+numa_taskq_dispatch_delay(numa_taskq_t *ntq, task_func_t func, void *arg,
+    uint_t flags, clock_t expire_time)
+{
+	return taskq_dispatch_delay(ntq->tq[curnode], func, arg, flags,
+		expire_time);
+}
+EXPORT_SYMBOL(numa_taskq_dispatch_delay);
 
 void
 taskq_dispatch_ent(taskq_t *tq, task_func_t func, void *arg, uint_t flags,
@@ -719,6 +737,14 @@ out2:
 	spin_unlock_irqrestore(&tq->tq_lock, irqflags);
 }
 EXPORT_SYMBOL(taskq_dispatch_ent);
+
+void
+numa_taskq_dispatch_ent(numa_taskq_t *ntq, task_func_t func, void *arg,
+	uint_t flags, taskq_ent_t *t)
+{
+	taskq_dispatch_ent(ntq->tq[curnode], func, arg, flags, t);
+}
+EXPORT_SYMBOL(numa_taskq_dispatch_ent);
 
 int
 taskq_empty_ent(taskq_ent_t *t)
@@ -986,8 +1012,8 @@ taskq_thread_create(taskq_t *tq)
 	tqt->tqt_tq = tq;
 	tqt->tqt_id = TASKQID_INVALID;
 
-	tqt->tqt_thread = spl_kthread_create(taskq_thread, tqt,
-	    "%s", tq->tq_name);
+	tqt->tqt_thread = spl_kthread_create_on_node(taskq_thread, tqt,
+		tq->tq_node, "%s", tq->tq_name);
 	if (tqt->tqt_thread == NULL) {
 		kmem_free(tqt, sizeof (taskq_thread_t));
 		return (NULL);
@@ -1007,8 +1033,8 @@ taskq_thread_create(taskq_t *tq)
 }
 
 taskq_t *
-taskq_create(const char *name, int nthreads, pri_t pri,
-    int minalloc, int maxalloc, uint_t flags)
+taskq_create_on_node(const char *name, int nthreads, pri_t pri,
+    int minalloc, int maxalloc, uint_t flags, int node)
 {
 	taskq_t *tq;
 	taskq_thread_t *tqt;
@@ -1026,7 +1052,12 @@ taskq_create(const char *name, int nthreads, pri_t pri,
 		ASSERT(nthreads >= 0);
 		nthreads = MIN(nthreads, 100);
 		nthreads = MAX(nthreads, 0);
-		nthreads = MAX((num_online_cpus() * nthreads) / 100, 1);
+		if (node == NUMA_NO_NODE) {
+			nthreads = MAX((num_online_cpus() * nthreads) / 100, 1);
+		} else {
+			nthreads = MAX((cpumask_weight(cpumask_of_node(node)) * nthreads)
+				/ 100, 1);
+		}
 	}
 
 	tq = kmem_alloc(sizeof (*tq), KM_PUSHPAGE);
@@ -1044,6 +1075,7 @@ taskq_create(const char *name, int nthreads, pri_t pri,
 	tq->tq_pri = pri;
 	tq->tq_minalloc = minalloc;
 	tq->tq_maxalloc = maxalloc;
+	tq->tq_node = node;
 	tq->tq_nalloc = 0;
 	tq->tq_flags = (flags | TASKQ_ACTIVE);
 	tq->tq_next_id = TASKQID_INITIAL;
@@ -1099,7 +1131,35 @@ taskq_create(const char *name, int nthreads, pri_t pri,
 
 	return (tq);
 }
+EXPORT_SYMBOL(taskq_create_on_node);
+
+taskq_t *
+taskq_create(const char *name, int nthreads, pri_t pri,
+    int minalloc, int maxalloc, uint_t flags)
+{
+	return taskq_create_on_node(name, nthreads, pri, minalloc,
+		maxalloc, flags, NUMA_NO_NODE);
+}
 EXPORT_SYMBOL(taskq_create);
+
+numa_taskq_t *
+numa_taskq_create(const char *name, int nthreadspernode, pri_t pri,
+    int minalloc, int maxalloc, uint_t flags)
+{
+	int n;
+	numa_taskq_t *ntq;
+	ntq = kmem_alloc(sizeof (*ntq), KM_PUSHPAGE);
+	if (ntq == NULL)
+		return (NULL);
+	ntq->tq = kzalloc(sizeof (taskq_t *) * nr_online_nodes,
+		kmem_flags_convert(KM_SLEEP));
+	for_each_online_node(n) {
+		ntq->tq[n] = taskq_create_on_node(name, nthreadspernode, pri,
+				minalloc, maxalloc, flags, n);
+	}
+	return (ntq);
+}
+EXPORT_SYMBOL(numa_taskq_create);
 
 void
 taskq_destroy(taskq_t *tq)
@@ -1181,6 +1241,16 @@ taskq_destroy(taskq_t *tq)
 }
 EXPORT_SYMBOL(taskq_destroy);
 
+void
+numa_taskq_destroy(numa_taskq_t *ntq)
+{
+	int n;
+	for_each_online_node(n) {
+		taskq_destroy(ntq->tq[n]);
+	}
+	kmem_free(ntq, sizeof (taskq_t *) * nr_online_nodes);
+}
+EXPORT_SYMBOL(numa_taskq_destroy);
 
 static unsigned int spl_taskq_kick = 0;
 

@@ -89,6 +89,7 @@ typedef struct taskq {
 	int			tq_minalloc;	/* min taskq_ent_t pool size */
 	int			tq_maxalloc;	/* max taskq_ent_t pool size */
 	int			tq_nalloc;	/* cur taskq_ent_t pool size */
+	int			tq_node;	/* assigned NUMA node */
 	uint_t			tq_flags;	/* flags */
 	taskqid_t		tq_next_id;	/* next pend/work id */
 	taskqid_t		tq_lowest_id;	/* lowest pend/work id */
@@ -101,6 +102,10 @@ typedef struct taskq {
 	spl_wait_queue_head_t	tq_wait_waitq;	/* wait waitq */
 	tq_lock_role_t		tq_lock_class;	/* class when taking tq_lock */
 } taskq_t;
+
+typedef struct numa_taskq {
+	taskq_t **tq;
+} numa_taskq_t;
 
 typedef struct taskq_ent {
 	spinlock_t		tqent_lock;
@@ -142,10 +147,19 @@ extern taskqid_t taskq_dispatch_delay(taskq_t *, task_func_t, void *,
     uint_t, clock_t);
 extern void taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
     taskq_ent_t *);
+extern taskqid_t numa_taskq_dispatch(numa_taskq_t *, task_func_t, void *,
+		uint_t);
+extern taskqid_t numa_taskq_dispatch_delay(numa_taskq_t *, task_func_t, void *,
+    uint_t, clock_t);
+extern void numa_taskq_dispatch_ent(numa_taskq_t *, task_func_t, void *,
+		uint_t, taskq_ent_t *);
 extern int taskq_empty_ent(taskq_ent_t *);
 extern void taskq_init_ent(taskq_ent_t *);
 extern taskq_t *taskq_create(const char *, int, pri_t, int, int, uint_t);
+extern numa_taskq_t *numa_taskq_create(const char *, int, pri_t, int, int,
+		uint_t);
 extern void taskq_destroy(taskq_t *);
+extern void numa_taskq_destroy(numa_taskq_t *);
 extern void taskq_wait_id(taskq_t *, taskqid_t);
 extern void taskq_wait_outstanding(taskq_t *, taskqid_t);
 extern void taskq_wait(taskq_t *);
