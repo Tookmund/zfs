@@ -1166,7 +1166,7 @@ numa_taskq_create(const char *name, int nthreadspernode, pri_t pri,
 		return (NULL);
 	ntq->tq = kzalloc(sizeof (taskq_t *) * nr_node_ids,
 		kmem_flags_convert(KM_SLEEP));
-	for_each_node(n) {
+	for_each_online_node(n) {
 		ntq->tq[n] = taskq_create_on_node(name, nthreadspernode, pri,
 				minalloc, maxalloc, flags, n);
 	}
