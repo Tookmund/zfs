@@ -185,7 +185,7 @@ MODULE_PARM_DESC(spl_kmem_cache_kmem_threads,
 
 struct list_head spl_kmem_cache_list;   /* List of caches */
 struct rw_semaphore spl_kmem_cache_sem; /* Cache list lock */
-taskq_t *spl_kmem_cache_taskq;		/* Task queue for aging / reclaim */
+numa_taskq_t *spl_kmem_cache_taskq;		/* Task queue for aging / reclaim */
 
 static void spl_cache_shrink(spl_kmem_cache_t *skc, void *obj);
 
@@ -662,13 +662,13 @@ spl_cache_age(void *data)
 	spl_slab_reclaim(skc);
 
 	while (!test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && !id) {
-		id = taskq_dispatch_delay(
+		id = numa_taskq_dispatch_delay(
 		    spl_kmem_cache_taskq, spl_cache_age, skc, TQ_SLEEP,
 		    ddi_get_lbolt() + skc->skc_delay / 3 * HZ);
 
 		/* Destroy issued after dispatch immediately cancel it */
 		if (test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && id)
-			taskq_cancel_id(spl_kmem_cache_taskq, id);
+			numa_taskq_cancel_id(spl_kmem_cache_taskq, id);
 	}
 
 	spin_lock(&skc->skc_lock);
@@ -1026,7 +1026,7 @@ spl_kmem_cache_create(char *name, size_t size, size_t align,
 	}
 
 	if (spl_kmem_cache_expire & KMC_EXPIRE_AGE) {
-		skc->skc_taskqid = taskq_dispatch_delay(spl_kmem_cache_taskq,
+		skc->skc_taskqid = numa_taskq_dispatch_delay(spl_kmem_cache_taskq,
 		    spl_cache_age, skc, TQ_SLEEP,
 		    ddi_get_lbolt() + skc->skc_delay / 3 * HZ);
 	}
@@ -1078,7 +1078,7 @@ spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 	id = skc->skc_taskqid;
 	spin_unlock(&skc->skc_lock);
 
-	taskq_cancel_id(spl_kmem_cache_taskq, id);
+	numa_taskq_cancel_id(spl_kmem_cache_taskq, id);
 
 	/*
 	 * Wait until all current callers complete, this is mainly
@@ -1273,7 +1273,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 		ska->ska_cache = skc;
 		ska->ska_flags = flags;
 		taskq_init_ent(&ska->ska_tqe);
-		taskq_dispatch_ent(spl_kmem_cache_taskq,
+		numa_taskq_dispatch_ent(spl_kmem_cache_taskq,
 		    spl_cache_grow_work, ska, 0, &ska->ska_tqe);
 	}
 
@@ -1781,9 +1781,9 @@ spl_kmem_cache_init(void)
 {
 	init_rwsem(&spl_kmem_cache_sem);
 	INIT_LIST_HEAD(&spl_kmem_cache_list);
-	spl_kmem_cache_taskq = taskq_create("spl_kmem_cache",
-	    spl_kmem_cache_kmem_threads, maxclsyspri,
-	    spl_kmem_cache_kmem_threads * 8, INT_MAX,
+	spl_kmem_cache_taskq = numa_taskq_create("spl_kmem_cache",
+	    MAX(spl_kmem_cache_kmem_threads / nr_online_nodes, 1),
+		maxclsyspri, spl_kmem_cache_kmem_threads * 8, INT_MAX,
 	    TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
 	spl_register_shrinker(&spl_kmem_cache_shrinker);
 
@@ -1794,5 +1794,5 @@ void
 spl_kmem_cache_fini(void)
 {
 	spl_unregister_shrinker(&spl_kmem_cache_shrinker);
-	taskq_destroy(spl_kmem_cache_taskq);
+	numa_taskq_destroy(spl_kmem_cache_taskq);
 }
