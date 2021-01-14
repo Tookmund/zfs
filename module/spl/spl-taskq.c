@@ -1068,8 +1068,7 @@ taskq_create_on_node(const char *name, int nthreads, pri_t pri,
 		if (node == NUMA_NO_NODE) {
 			nthreads = MAX((num_online_cpus() * nthreads) / 100, 1);
 		} else {
-			nthreads = MAX((cpumask_weight(cpumask_of_node(node)) * nthreads)
-				/ 100, 1);
+			nthreads = MAX((numcpusnode(node) * nthreads) / 100, 1);
 		}
 	}
 

@@ -54,9 +54,10 @@ typedef void (*thread_func_t)(void *);
 #define	thread_exit()			__thread_exit()
 #define	thread_join(t)			VERIFY(0)
 #define	curthread			current
-#define	curnode				cpu_to_node(current->cpu)
 #define	getcomm()			current->comm
 #define	getpid()			current->pid
+#define	curnode				cpu_to_node(current->cpu)
+#define	numcpusnode(node)		cpumask_weight(cpumask_of_node(node))
 
 extern kthread_t *__thread_create(caddr_t stk, size_t  stksize,
     thread_func_t func, const char *name, void *args, size_t len, proc_t *pp,
