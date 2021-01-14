@@ -545,6 +545,25 @@ taskq_cancel_id(taskq_t *tq, taskqid_t id)
 }
 EXPORT_SYMBOL(taskq_cancel_id);
 
+int
+numa_taskq_cancel_id(numa_taskq_t *ntq, taskqid_t id)
+{
+	int cn = curnode;
+	int rc = taskq_cancel_id(ntq->tq[cn], id);
+	if (rc == ENOENT) {
+		int n;
+		for_each_online_node(n) {
+			if (n != cn)
+				rc = taskq_cancel_id(ntq->tq[n], id);
+
+			if (rc != ENOENT)
+				break;
+		}
+	}
+	return (rc);
+}
+EXPORT_SYMBOL(numa_taskq_cancel_id);
+
 static int taskq_thread_spawn(taskq_t *tq);
 
 taskqid_t
