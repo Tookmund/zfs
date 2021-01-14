@@ -1070,6 +1070,9 @@ taskq_create_on_node(const char *name, int nthreads, pri_t pri,
 		} else {
 			nthreads = MAX((numcpusnode(node) * nthreads) / 100, 1);
 		}
+	/* Same number of threads as CPUs per node */
+	} else if (nthreads < 0) {
+		nthreads = numcpusnode(node);
 	}
 
 	tq = kmem_alloc(sizeof (*tq), KM_PUSHPAGE);
