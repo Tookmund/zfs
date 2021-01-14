@@ -185,7 +185,7 @@ typedef struct spl_kmem_cache {
 	uint32_t		skc_delay;	/* Slab reclaim interval */
 	uint32_t		skc_reap;	/* Slab reclaim count */
 	atomic_t		skc_ref;	/* Ref count callers */
-	taskqid_t		skc_taskqid;	/* Slab reclaim task */
+	numa_taskqid_t		skc_taskqid;	/* Slab reclaim task */
 	struct list_head	skc_list;	/* List of caches linkage */
 	struct list_head	skc_complete_list; /* Completely alloc'ed */
 	struct list_head	skc_partial_list;  /* Partially alloc'ed */

@@ -103,6 +103,11 @@ typedef struct taskq {
 	tq_lock_role_t		tq_lock_class;	/* class when taking tq_lock */
 } taskq_t;
 
+typedef struct numa_taskqid {
+	int node;
+	taskqid_t id;
+} numa_taskqid_t;
+
 typedef struct numa_taskq {
 	taskq_t **tq;
 } numa_taskq_t;
@@ -147,10 +152,10 @@ extern taskqid_t taskq_dispatch_delay(taskq_t *, task_func_t, void *,
     uint_t, clock_t);
 extern void taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
     taskq_ent_t *);
-extern taskqid_t numa_taskq_dispatch(numa_taskq_t *, task_func_t, void *,
-		uint_t);
-extern taskqid_t numa_taskq_dispatch_delay(numa_taskq_t *, task_func_t, void *,
-    uint_t, clock_t);
+extern numa_taskqid_t numa_taskq_dispatch(numa_taskq_t *, task_func_t,
+		void *, uint_t);
+extern numa_taskqid_t numa_taskq_dispatch_delay(numa_taskq_t *, task_func_t,
+		void *, uint_t, clock_t);
 extern void numa_taskq_dispatch_ent(numa_taskq_t *, task_func_t, void *,
 		uint_t, taskq_ent_t *);
 extern int taskq_empty_ent(taskq_ent_t *);
@@ -164,7 +169,7 @@ extern void taskq_wait_id(taskq_t *, taskqid_t);
 extern void taskq_wait_outstanding(taskq_t *, taskqid_t);
 extern void taskq_wait(taskq_t *);
 extern int taskq_cancel_id(taskq_t *, taskqid_t);
-extern int numa_taskq_cancel_id(numa_taskq_t *, taskqid_t);
+extern int numa_taskq_cancel_id(numa_taskq_t *, numa_taskqid_t);
 extern int taskq_member(taskq_t *, kthread_t *);
 
 #define	taskq_create_proc(name, nthreads, pri, min, max, proc, flags) \

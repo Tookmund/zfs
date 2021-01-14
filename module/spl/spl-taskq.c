@@ -546,21 +546,9 @@ taskq_cancel_id(taskq_t *tq, taskqid_t id)
 EXPORT_SYMBOL(taskq_cancel_id);
 
 int
-numa_taskq_cancel_id(numa_taskq_t *ntq, taskqid_t id)
+numa_taskq_cancel_id(numa_taskq_t *ntq, numa_taskqid_t id)
 {
-	int cn = curnode;
-	int rc = taskq_cancel_id(ntq->tq[cn], id);
-	if (rc == ENOENT) {
-		int n;
-		for_each_node(n) {
-			if (n != cn)
-				rc = taskq_cancel_id(ntq->tq[n], id);
-
-			if (rc != ENOENT)
-				break;
-		}
-	}
-	return (rc);
+	return taskq_cancel_id(ntq->tq[id.node], id.id);
 }
 EXPORT_SYMBOL(numa_taskq_cancel_id);
 
@@ -629,12 +617,15 @@ out:
 }
 EXPORT_SYMBOL(taskq_dispatch);
 
-taskqid_t
+numa_taskqid_t
 numa_taskq_dispatch(numa_taskq_t *ntq, task_func_t func, void *arg,
 		uint_t flags)
 {
-	return taskq_dispatch(ntq->tq[curnode], func, arg,
-			flags);
+	numa_taskqid_t nqid;
+	nqid.node = curnode;
+	nqid.id = taskq_dispatch(ntq->tq[nqid.node], func, arg,
+		flags);
+	return nqid;
 }
 EXPORT_SYMBOL(numa_taskq_dispatch);
 
@@ -684,12 +675,15 @@ out:
 }
 EXPORT_SYMBOL(taskq_dispatch_delay);
 
-taskqid_t
+numa_taskqid_t
 numa_taskq_dispatch_delay(numa_taskq_t *ntq, task_func_t func, void *arg,
     uint_t flags, clock_t expire_time)
 {
-	return taskq_dispatch_delay(ntq->tq[curnode], func, arg, flags,
+	numa_taskqid_t nqid;
+	nqid.node = curnode;
+	nqid.id = taskq_dispatch_delay(ntq->tq[nqid.node], func, arg, flags,
 		expire_time);
+	return nqid;
 }
 EXPORT_SYMBOL(numa_taskq_dispatch_delay);
 

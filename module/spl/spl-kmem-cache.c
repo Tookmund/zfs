@@ -646,7 +646,8 @@ static void
 spl_cache_age(void *data)
 {
 	spl_kmem_cache_t *skc = (spl_kmem_cache_t *)data;
-	taskqid_t id = 0;
+	numa_taskqid_t nqid;
+	nqid.id = 0;
 
 	ASSERT(skc->skc_magic == SKC_MAGIC);
 
@@ -661,18 +662,18 @@ spl_cache_age(void *data)
 
 	spl_slab_reclaim(skc);
 
-	while (!test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && !id) {
-		id = numa_taskq_dispatch_delay(
+	while (!test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && !nqid.id) {
+		nqid = numa_taskq_dispatch_delay(
 		    spl_kmem_cache_taskq, spl_cache_age, skc, TQ_SLEEP,
 		    ddi_get_lbolt() + skc->skc_delay / 3 * HZ);
 
 		/* Destroy issued after dispatch immediately cancel it */
-		if (test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && id)
-			numa_taskq_cancel_id(spl_kmem_cache_taskq, id);
+		if (test_bit(KMC_BIT_DESTROY, &skc->skc_flags) && nqid.id)
+			numa_taskq_cancel_id(spl_kmem_cache_taskq, nqid);
 	}
 
 	spin_lock(&skc->skc_lock);
-	skc->skc_taskqid = id;
+	skc->skc_taskqid = nqid;
 	spin_unlock(&skc->skc_lock);
 
 	atomic_dec(&skc->skc_ref);
@@ -1062,7 +1063,7 @@ void
 spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 {
 	DECLARE_WAIT_QUEUE_HEAD(wq);
-	taskqid_t id;
+	numa_taskqid_t nqid;
 
 	ASSERT(skc->skc_magic == SKC_MAGIC);
 	ASSERT(skc->skc_flags & (KMC_KMEM | KMC_VMEM | KMC_SLAB));
@@ -1075,10 +1076,10 @@ spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 	VERIFY(!test_and_set_bit(KMC_BIT_DESTROY, &skc->skc_flags));
 
 	spin_lock(&skc->skc_lock);
-	id = skc->skc_taskqid;
+	nqid = skc->skc_taskqid;
 	spin_unlock(&skc->skc_lock);
 
-	numa_taskq_cancel_id(spl_kmem_cache_taskq, id);
+	numa_taskq_cancel_id(spl_kmem_cache_taskq, nqid);
 
 	/*
 	 * Wait until all current callers complete, this is mainly
