@@ -271,7 +271,7 @@ abd_alloc_pages(abd_t *abd, size_t size)
 	int nr_pages = abd_chunkcnt_for_bytes(size);
 	int chunks = 0, zones = 0;
 	size_t remaining_size;
-	int nid = NUMA_NO_NODE;
+	int nid = ZFSNUMANODE;
 	int alloc_pages = 0;
 
 	INIT_LIST_HEAD(&pages);
