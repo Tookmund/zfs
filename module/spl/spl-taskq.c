@@ -552,7 +552,7 @@ numa_taskq_cancel_id(numa_taskq_t *ntq, taskqid_t id)
 	int rc = taskq_cancel_id(ntq->tq[cn], id);
 	if (rc == ENOENT) {
 		int n;
-		for_each_online_node(n) {
+		for_each_node(n) {
 			if (n != cn)
 				rc = taskq_cancel_id(ntq->tq[n], id);
 
@@ -1170,9 +1170,9 @@ numa_taskq_create(const char *name, int nthreadspernode, pri_t pri,
 	ntq = kmem_alloc(sizeof (*ntq), KM_PUSHPAGE);
 	if (ntq == NULL)
 		return (NULL);
-	ntq->tq = kzalloc(sizeof (taskq_t *) * nr_online_nodes,
+	ntq->tq = kzalloc(sizeof (taskq_t *) * nr_node_ids,
 		kmem_flags_convert(KM_SLEEP));
-	for_each_online_node(n) {
+	for_each_node(n) {
 		ntq->tq[n] = taskq_create_on_node(name, nthreadspernode, pri,
 				minalloc, maxalloc, flags, n);
 	}
@@ -1264,10 +1264,10 @@ void
 numa_taskq_destroy(numa_taskq_t *ntq)
 {
 	int n;
-	for_each_online_node(n) {
+	for_each_node(n) {
 		taskq_destroy(ntq->tq[n]);
 	}
-	kmem_free(ntq, sizeof (taskq_t *) * nr_online_nodes);
+	kmem_free(ntq, sizeof (taskq_t *) * nr_node_ids);
 }
 EXPORT_SYMBOL(numa_taskq_destroy);
 
