@@ -428,6 +428,13 @@ taskq_wait_id(taskq_t *tq, taskqid_t id)
 }
 EXPORT_SYMBOL(taskq_wait_id);
 
+void
+numa_taskq_wait_id(numa_taskq_t *ntq, numa_taskqid_t id)
+{
+	taskq_wait_id(ntq->tq[id.node], id.id);
+}
+EXPORT_SYMBOL(numa_taskq_wait_id);
+
 static int
 taskq_wait_outstanding_check(taskq_t *tq, taskqid_t id)
 {
@@ -455,6 +462,17 @@ taskq_wait_outstanding(taskq_t *tq, taskqid_t id)
 	wait_event(tq->tq_wait_waitq, taskq_wait_outstanding_check(tq, id));
 }
 EXPORT_SYMBOL(taskq_wait_outstanding);
+
+
+/*
+ * TODO: What about tasks on other nodes?
+ */
+void
+numa_taskq_wait_outstanding(numa_taskq_t *ntq, numa_taskqid_t id)
+{
+	taskq_wait_outstanding(ntq->tq[id.node], id.id);
+}
+EXPORT_SYMBOL(numa_taskq_wait_outstanding);
 
 static int
 taskq_wait_check(taskq_t *tq)
@@ -487,6 +505,18 @@ taskq_member(taskq_t *tq, kthread_t *t)
 	return (tq == (taskq_t *)tsd_get_by_thread(taskq_tsd, t));
 }
 EXPORT_SYMBOL(taskq_member);
+
+int
+numa_taskq_member(numa_taskq_t *ntq, kthread_t *t)
+{
+	int node;
+	for_each_online_node(node) {
+		if (taskq_member(ntq->tq[node], t))
+			return (1);
+	}
+	return (0);
+}
+EXPORT_SYMBOL(numa_taskq_member);
 
 /*
  * Cancel an already dispatched task given the task id.  Still pending tasks

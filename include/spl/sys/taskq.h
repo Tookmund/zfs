@@ -166,11 +166,14 @@ extern numa_taskq_t *numa_taskq_create(const char *, int, pri_t, int, int,
 extern void taskq_destroy(taskq_t *);
 extern void numa_taskq_destroy(numa_taskq_t *);
 extern void taskq_wait_id(taskq_t *, taskqid_t);
+extern void numa_taskq_wait_id(numa_taskq_t *, numa_taskqid_t);
 extern void taskq_wait_outstanding(taskq_t *, taskqid_t);
+extern void numa_taskq_wait_outstanding(numa_taskq_t *, numa_taskqid_t);
 extern void taskq_wait(taskq_t *);
 extern int taskq_cancel_id(taskq_t *, taskqid_t);
 extern int numa_taskq_cancel_id(numa_taskq_t *, numa_taskqid_t);
 extern int taskq_member(taskq_t *, kthread_t *);
+extern int numa_taskq_member(numa_taskq_t *, kthread_t *);
 
 #define	taskq_create_proc(name, nthreads, pri, min, max, proc, flags) \
     taskq_create(name, nthreads, pri, min, max, flags)
