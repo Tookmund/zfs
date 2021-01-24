@@ -176,9 +176,9 @@ extern int taskq_member(taskq_t *, kthread_t *);
 extern int numa_taskq_member(numa_taskq_t *, kthread_t *);
 
 #define	taskq_create_proc(name, nthreads, pri, min, max, proc, flags) \
-    taskq_create(name, nthreads, pri, min, max, flags)
+    numa_taskq_create(name, nthreads, pri, min, max, flags)
 #define	taskq_create_sysdc(name, nthreads, min, max, proc, dc, flags) \
-    taskq_create(name, nthreads, maxclsyspri, min, max, flags)
+    numa_taskq_create(name, nthreads, maxclsyspri, min, max, flags)
 
 int spl_taskq_init(void);
 void spl_taskq_fini(void);

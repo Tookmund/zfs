@@ -176,7 +176,7 @@ typedef enum spa_proc_state {
 
 typedef struct spa_taskqs {
 	uint_t stqs_count;
-	taskq_t **stqs_taskq;
+	numa_taskq_t **stqs_taskq;
 } spa_taskqs_t;
 
 typedef enum spa_all_vdev_zap_action {

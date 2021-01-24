@@ -968,12 +968,12 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 	ASSERT3U(count, >, 0);
 
 	tqs->stqs_count = count;
-	tqs->stqs_taskq = kmem_alloc(count * sizeof (taskq_t *), KM_SLEEP);
+	tqs->stqs_taskq = kmem_alloc(count * sizeof (numa_taskq_t *), KM_SLEEP);
 
 	switch (mode) {
 	case ZTI_MODE_FIXED:
 		ASSERT3U(value, >=, 1);
-		value = MAX(value, 1);
+		value = MAX(value / nr_node_ids, 1);
 		flags |= TASKQ_DYNAMIC;
 		break;
 
@@ -991,7 +991,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 	}
 
 	for (uint_t i = 0; i < count; i++) {
-		taskq_t *tq;
+		numa_taskq_t *tq;
 		char name[32];
 
 		(void) snprintf(name, sizeof (name), "%s_%s",
@@ -1035,10 +1035,10 @@ spa_taskqs_fini(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 
 	for (uint_t i = 0; i < tqs->stqs_count; i++) {
 		ASSERT3P(tqs->stqs_taskq[i], !=, NULL);
-		taskq_destroy(tqs->stqs_taskq[i]);
+		numa_taskq_destroy(tqs->stqs_taskq[i]);
 	}
 
-	kmem_free(tqs->stqs_taskq, tqs->stqs_count * sizeof (taskq_t *));
+	kmem_free(tqs->stqs_taskq, tqs->stqs_count * sizeof (numa_taskq_t *));
 	tqs->stqs_taskq = NULL;
 }
 
@@ -1053,7 +1053,7 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
     task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent)
 {
 	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
-	taskq_t *tq;
+	numa_taskq_t *tq;
 
 	ASSERT3P(tqs->stqs_taskq, !=, NULL);
 	ASSERT3U(tqs->stqs_count, !=, 0);
@@ -1064,7 +1064,7 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 		tq = tqs->stqs_taskq[((uint64_t)gethrtime()) % tqs->stqs_count];
 	}
 
-	taskq_dispatch_ent(tq, func, arg, flags, ent);
+	numa_taskq_dispatch_ent(tq, func, arg, flags, ent);
 }
 
 /*
@@ -1075,8 +1075,8 @@ spa_taskq_dispatch_sync(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
     task_func_t *func, void *arg, uint_t flags)
 {
 	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
-	taskq_t *tq;
-	taskqid_t id;
+	numa_taskq_t *tq;
+	numa_taskqid_t id;
 
 	ASSERT3P(tqs->stqs_taskq, !=, NULL);
 	ASSERT3U(tqs->stqs_count, !=, 0);
@@ -1087,9 +1087,13 @@ spa_taskq_dispatch_sync(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 		tq = tqs->stqs_taskq[((uint64_t)gethrtime()) % tqs->stqs_count];
 	}
 
-	id = taskq_dispatch(tq, func, arg, flags);
+	id = numa_taskq_dispatch(tq, func, arg, flags);
+#ifdef numa_taskq_dispatch
 	if (id)
-		taskq_wait_id(tq, id);
+#else
+	if (id.id)
+#endif
+		numa_taskq_wait_id(tq, id);
 }
 
 static void

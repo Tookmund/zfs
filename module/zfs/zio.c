@@ -1812,7 +1812,7 @@ zio_taskq_member(zio_t *zio, zio_taskq_type_t q)
 		spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
 		uint_t i;
 		for (i = 0; i < tqs->stqs_count; i++) {
-			if (taskq_member(tqs->stqs_taskq[i], executor))
+			if (numa_taskq_member(tqs->stqs_taskq[i], executor))
 				return (B_TRUE);
 		}
 	}

@@ -464,6 +464,17 @@ typedef struct taskq {
 	taskq_ent_t	tq_task;
 } taskq_t;
 
+/* Not worried about NUMA for userspace, that's what numactl is for */
+#define nr_node_ids	1
+#define numa_taskq_t	taskq_t
+#define numa_taskqid_t	taskqid_t
+#define numa_taskq_destroy	taskq_destroy
+#define numa_taskq_dispatch	taskq_dispatch
+#define numa_taskq_dispatch_ent	taskq_dispatch_ent
+#define numa_taskq_wait_id	taskq_wait_id
+#define numa_taskq_wait_outstanding	taskq_wait_outstanding
+#define numa_taskq_member	taskq_member
+
 #define	TQENT_FLAG_PREALLOC	0x1	/* taskq_dispatch_ent used */
 
 #define	TASKQ_PREPOPULATE	0x0001
