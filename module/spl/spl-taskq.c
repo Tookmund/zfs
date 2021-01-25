@@ -785,13 +785,9 @@ void
 numa_taskq_dispatch_ent(numa_taskq_t *ntq, task_func_t func, void *arg,
 	uint_t flags, taskq_ent_t *t)
 {
-	taskq_t *tq;
-	if (t->tqent_node != NUMA_NO_NODE)
-		tq = ntq->tq[t->tqent_node];
-	else
-		tq = ntq->tq[curnode];
-
-	taskq_dispatch_ent(tq, func, arg, flags, t);
+	if (t->tqent_node == NUMA_NO_NODE)
+		t->tqent_node = curnode;
+	taskq_dispatch_ent(ntq->tq[t->tqent_node], func, arg, flags, t);
 }
 EXPORT_SYMBOL(numa_taskq_dispatch_ent);
 
