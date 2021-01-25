@@ -622,6 +622,9 @@ zio_add_child(zio_t *pio, zio_t *cio)
 
 	pio->io_child_count++;
 	cio->io_parent_count++;
+#if defined(_KERNEL)
+	cio->io_tqent.tqent_node = pio->io_tqent.tqent_node;
+#endif
 
 	mutex_exit(&cio->io_lock);
 	mutex_exit(&pio->io_lock);
@@ -858,6 +861,9 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	}
 
 	taskq_init_ent(&zio->io_tqent);
+#if defined(_KERNEL)
+	zio->io_tqent.tqent_node = curnode;
+#endif
 
 	return (zio);
 }
