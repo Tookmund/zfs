@@ -123,6 +123,7 @@ typedef struct taskq_ent {
 	taskq_t			*tqent_taskq;
 	uintptr_t		tqent_flags;
 	unsigned long		tqent_birth;
+	int			tqent_node;
 } taskq_ent_t;
 
 #define	TQENT_FLAG_PREALLOC	0x1
