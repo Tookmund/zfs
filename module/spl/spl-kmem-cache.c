@@ -410,6 +410,7 @@ spl_slab_reclaim(spl_kmem_cache_t *skc)
 	spl_kmem_obj_t *sko = NULL, *n = NULL;
 	LIST_HEAD(sks_list);
 	LIST_HEAD(sko_list);
+	int node;
 	uint32_t size = 0;
 
 	/*
@@ -419,13 +420,15 @@ spl_slab_reclaim(spl_kmem_cache_t *skc)
 	 * slab is found we can stop scanning.
 	 */
 	spin_lock(&skc->skc_lock);
-	list_for_each_entry_safe_reverse(sks, m,
-	    &skc->skc_partial_list, sks_list) {
+	for_each_node(node) {
+		list_for_each_entry_safe_reverse(sks, m,
+			&skc->skc_partial_list[node], sks_list) {
 
-		if (sks->sks_ref > 0)
-			break;
+			if (sks->sks_ref > 0)
+				break;
 
-		spl_slab_free(sks, &sks_list, &sko_list);
+			spl_slab_free(sks, &sks_list, &sko_list);
+		}
 	}
 	spin_unlock(&skc->skc_lock);
 
@@ -512,7 +515,7 @@ spl_emergency_alloc(spl_kmem_cache_t *skc, int flags, void **obj)
 
 	/* Last chance use a partial slab if one now exists */
 	spin_lock(&skc->skc_lock);
-	empty = list_empty(&skc->skc_partial_list);
+	empty = list_empty(&skc->skc_partial_list[curnode]);
 	spin_unlock(&skc->skc_lock);
 	if (!empty)
 		return (-EEXIST);
@@ -878,6 +881,7 @@ spl_kmem_cache_create(char *name, size_t size, size_t align,
 	gfp_t lflags = kmem_flags_convert(KM_SLEEP);
 	spl_kmem_cache_t *skc;
 	int rc;
+	int node;
 
 	/*
 	 * Unsupported flags
@@ -916,8 +920,19 @@ spl_kmem_cache_create(char *name, size_t size, size_t align,
 	atomic_set(&skc->skc_ref, 0);
 
 	INIT_LIST_HEAD(&skc->skc_list);
-	INIT_LIST_HEAD(&skc->skc_complete_list);
-	INIT_LIST_HEAD(&skc->skc_partial_list);
+
+	skc->skc_complete_list = kmalloc(sizeof(struct list_head)*nr_node_ids,
+			lflags);
+	for_each_node(node) {
+		INIT_LIST_HEAD(&skc->skc_complete_list[node]);
+	}
+
+	skc->skc_partial_list = kmalloc(sizeof(struct list_head)*nr_node_ids,
+			lflags);
+	for_each_node(node) {
+		INIT_LIST_HEAD(&skc->skc_partial_list[node]);
+	}
+
 	skc->skc_emergency_tree = RB_ROOT;
 	spin_lock_init(&skc->skc_lock);
 	init_waitqueue_head(&skc->skc_waitq);
@@ -1064,6 +1079,7 @@ spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 {
 	DECLARE_WAIT_QUEUE_HEAD(wq);
 	numa_taskqid_t nqid;
+	int node;
 
 	ASSERT(skc->skc_magic == SKC_MAGIC);
 	ASSERT(skc->skc_flags & (KMC_KMEM | KMC_VMEM | KMC_SLAB));
@@ -1107,7 +1123,9 @@ spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 	ASSERT3U(skc->skc_slab_total, ==, 0);
 	ASSERT3U(skc->skc_obj_total, ==, 0);
 	ASSERT3U(skc->skc_obj_emergency, ==, 0);
-	ASSERT(list_empty(&skc->skc_complete_list));
+	for_each_node(node) {
+		ASSERT(list_empty(&skc->skc_complete_list[node]));
+	}
 
 	spin_unlock(&skc->skc_lock);
 
@@ -1172,7 +1190,7 @@ __spl_cache_grow(spl_kmem_cache_t *skc, int flags)
 	if (sks) {
 		skc->skc_slab_total++;
 		skc->skc_obj_total += sks->sks_objs;
-		list_add_tail(&sks->sks_list, &skc->skc_partial_list);
+		list_add_tail(&sks->sks_list, &skc->skc_partial_list[curnode]);
 
 		smp_mb__before_atomic();
 		clear_bit(KMC_BIT_DEADLOCKED, &skc->skc_flags);
@@ -1330,7 +1348,7 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 
 	while (refill > 0) {
 		/* No slabs available we may need to grow the cache */
-		if (list_empty(&skc->skc_partial_list)) {
+		if (list_empty(&skc->skc_partial_list[curnode])) {
 			spin_unlock(&skc->skc_lock);
 
 			local_irq_enable();
@@ -1360,7 +1378,7 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 		}
 
 		/* Grab the next available slab */
-		sks = list_entry((&skc->skc_partial_list)->next,
+		sks = list_entry((&skc->skc_partial_list[curnode])->next,
 		    spl_kmem_slab_t, sks_list);
 		ASSERT(sks->sks_magic == SKS_MAGIC);
 		ASSERT(sks->sks_ref < sks->sks_objs);
@@ -1381,7 +1399,7 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 		/* Move slab to skc_complete_list when full */
 		if (sks->sks_ref == sks->sks_objs) {
 			list_del(&sks->sks_list);
-			list_add(&sks->sks_list, &skc->skc_complete_list);
+			list_add(&sks->sks_list, &skc->skc_complete_list[curnode]);
 		}
 	}
 
@@ -1419,7 +1437,7 @@ spl_cache_shrink(spl_kmem_cache_t *skc, void *obj)
 	 */
 	if (sks->sks_ref == (sks->sks_objs - 1)) {
 		list_del(&sks->sks_list);
-		list_add(&sks->sks_list, &skc->skc_partial_list);
+		list_add(&sks->sks_list, &skc->skc_partial_list[curnode]);
 	}
 
 	/*
@@ -1428,7 +1446,7 @@ spl_cache_shrink(spl_kmem_cache_t *skc, void *obj)
 	 */
 	if (sks->sks_ref == 0) {
 		list_del(&sks->sks_list);
-		list_add_tail(&sks->sks_list, &skc->skc_partial_list);
+		list_add_tail(&sks->sks_list, &skc->skc_partial_list[curnode]);
 		skc->skc_slab_alloc--;
 	}
 }
