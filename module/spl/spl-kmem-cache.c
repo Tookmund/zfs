@@ -187,7 +187,7 @@ struct list_head spl_kmem_cache_list;   /* List of caches */
 struct rw_semaphore spl_kmem_cache_sem; /* Cache list lock */
 numa_taskq_t *spl_kmem_cache_taskq;		/* Task queue for aging / reclaim */
 
-static void spl_cache_shrink(spl_kmem_cache_t *skc, void *obj);
+static void spl_cache_shrink(spl_kmem_cache_t *skc, void *obj, int node);
 
 SPL_SHRINKER_CALLBACK_FWD_DECLARE(spl_kmem_cache_generic_shrinker);
 SPL_SHRINKER_DECLARE(spl_kmem_cache_shrinker,
@@ -506,7 +506,7 @@ spl_emergency_insert(struct rb_root *root, spl_kmem_emergency_t *ske)
  * Allocate a single emergency object and track it in a red black tree.
  */
 static int
-spl_emergency_alloc(spl_kmem_cache_t *skc, int flags, void **obj)
+spl_emergency_alloc(spl_kmem_cache_t *skc, int flags, int node, void **obj)
 {
 	gfp_t lflags = kmem_flags_convert(flags);
 	spl_kmem_emergency_t *ske;
@@ -515,7 +515,7 @@ spl_emergency_alloc(spl_kmem_cache_t *skc, int flags, void **obj)
 
 	/* Last chance use a partial slab if one now exists */
 	spin_lock(&skc->skc_lock);
-	empty = list_empty(&skc->skc_partial_list[curnode]);
+	empty = list_empty(&skc->skc_partial_list[node]);
 	spin_unlock(&skc->skc_lock);
 	if (!empty)
 		return (-EEXIST);
@@ -591,7 +591,7 @@ __spl_cache_flush(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flush)
 	ASSERT(skm->skm_magic == SKM_MAGIC);
 
 	for (i = 0; i < count; i++)
-		spl_cache_shrink(skc, skm->skm_objs[i]);
+		spl_cache_shrink(skc, skm->skm_objs[i], cpu_to_node(skm->skm_cpu));
 
 	skm->skm_avail -= count;
 	memmove(skm->skm_objs, &(skm->skm_objs[count]),
@@ -1234,7 +1234,7 @@ spl_cache_grow_wait(spl_kmem_cache_t *skc)
  * Linux slab.
  */
 static int
-spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
+spl_cache_grow(spl_kmem_cache_t *skc, int flags, int node, void **obj)
 {
 	int remaining, rc = 0;
 
@@ -1263,7 +1263,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 	 * However, this can't be applied to KVM_VMEM due to a bug that
 	 * spl_vmalloc() doesn't honor gfp flags in page table allocation.
 	 */
-	if (!(skc->skc_flags & KMC_VMEM)) {
+	if (!(skc->skc_flags & KMC_VMEM) && curnode == node) {
 		rc = __spl_cache_grow(skc, flags | KM_NOSLEEP);
 		if (rc == 0) {
 			wake_up_all(&skc->skc_waitq);
@@ -1292,6 +1292,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 		ska->ska_cache = skc;
 		ska->ska_flags = flags;
 		taskq_init_ent(&ska->ska_tqe);
+		ska->ska_tqe.tqent_node = node;
 		numa_taskq_dispatch_ent(spl_kmem_cache_taskq,
 		    spl_cache_grow_work, ska, 0, &ska->ska_tqe);
 	}
@@ -1306,7 +1307,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 	 * asynchronous allocation completes and clears the deadlocked flag.
 	 */
 	if (test_bit(KMC_BIT_DEADLOCKED, &skc->skc_flags)) {
-		rc = spl_emergency_alloc(skc, flags, obj);
+		rc = spl_emergency_alloc(skc, flags, node, obj);
 	} else {
 		remaining = wait_event_timeout(skc->skc_waitq,
 		    spl_cache_grow_wait(skc), HZ / 10);
@@ -1337,7 +1338,7 @@ static void *
 spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 {
 	spl_kmem_slab_t *sks;
-	int count = 0, rc, refill;
+	int count = 0, rc, refill, node = cpu_to_node(skm->skm_cpu);
 	void *obj = NULL;
 
 	ASSERT(skc->skc_magic == SKC_MAGIC);
@@ -1348,11 +1349,11 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 
 	while (refill > 0) {
 		/* No slabs available we may need to grow the cache */
-		if (list_empty(&skc->skc_partial_list[curnode])) {
+		if (list_empty(&skc->skc_partial_list[node])) {
 			spin_unlock(&skc->skc_lock);
 
 			local_irq_enable();
-			rc = spl_cache_grow(skc, flags, &obj);
+			rc = spl_cache_grow(skc, flags, node, &obj);
 			local_irq_disable();
 
 			/* Emergency object for immediate use by caller */
@@ -1378,7 +1379,7 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 		}
 
 		/* Grab the next available slab */
-		sks = list_entry((&skc->skc_partial_list[curnode])->next,
+		sks = list_entry((&skc->skc_partial_list[node])->next,
 		    spl_kmem_slab_t, sks_list);
 		ASSERT(sks->sks_magic == SKS_MAGIC);
 		ASSERT(sks->sks_ref < sks->sks_objs);
@@ -1399,7 +1400,7 @@ spl_cache_refill(spl_kmem_cache_t *skc, spl_kmem_magazine_t *skm, int flags)
 		/* Move slab to skc_complete_list when full */
 		if (sks->sks_ref == sks->sks_objs) {
 			list_del(&sks->sks_list);
-			list_add(&sks->sks_list, &skc->skc_complete_list[curnode]);
+			list_add(&sks->sks_list, &skc->skc_complete_list[node]);
 		}
 	}
 
@@ -1412,7 +1413,7 @@ out:
  * Release an object back to the slab from which it came.
  */
 static void
-spl_cache_shrink(spl_kmem_cache_t *skc, void *obj)
+spl_cache_shrink(spl_kmem_cache_t *skc, void *obj, int node)
 {
 	spl_kmem_slab_t *sks = NULL;
 	spl_kmem_obj_t *sko = NULL;
@@ -1437,7 +1438,7 @@ spl_cache_shrink(spl_kmem_cache_t *skc, void *obj)
 	 */
 	if (sks->sks_ref == (sks->sks_objs - 1)) {
 		list_del(&sks->sks_list);
-		list_add(&sks->sks_list, &skc->skc_partial_list[curnode]);
+		list_add(&sks->sks_list, &skc->skc_partial_list[node]);
 	}
 
 	/*
@@ -1446,7 +1447,7 @@ spl_cache_shrink(spl_kmem_cache_t *skc, void *obj)
 	 */
 	if (sks->sks_ref == 0) {
 		list_del(&sks->sks_list);
-		list_add_tail(&sks->sks_list, &skc->skc_partial_list[curnode]);
+		list_add_tail(&sks->sks_list, &skc->skc_partial_list[node]);
 		skc->skc_slab_alloc--;
 	}
 }
