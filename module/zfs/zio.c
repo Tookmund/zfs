@@ -2093,6 +2093,20 @@ __zio_execute(zio_t *zio)
 			return;
 		}
 
+#if defined(_KERNEL)
+		/*
+		 * If the current thread is executing on the wrong node,
+		 * the zio must be issued asynchronously to ensure best
+		 * performanace.
+		 */
+		if (curnode != zio->io_tqent.tqent_node) {
+			boolean_t cut = (stage == ZIO_STAGE_VDEV_IO_START) ?
+			    zio_requeue_io_start_cut_in_line : B_FALSE;
+			zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, cut);
+			return;
+		}
+#endif
+
 		zio->io_stage = stage;
 		zio->io_pipeline_trace |= zio->io_stage;
 
