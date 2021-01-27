@@ -850,6 +850,11 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	if (zb != NULL)
 		zio->io_bookmark = *zb;
 
+	taskq_init_ent(&zio->io_tqent);
+#if defined(_KERNEL)
+	zio->io_tqent.tqent_node = curnode;
+#endif
+
 	if (pio != NULL) {
 		if (zio->io_metaslab_class == NULL)
 			zio->io_metaslab_class = pio->io_metaslab_class;
@@ -859,11 +864,6 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 			zio->io_gang_leader = pio->io_gang_leader;
 		zio_add_child(pio, zio);
 	}
-
-	taskq_init_ent(&zio->io_tqent);
-#if defined(_KERNEL)
-	zio->io_tqent.tqent_node = curnode;
-#endif
 
 	return (zio);
 }
