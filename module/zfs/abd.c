@@ -269,9 +269,9 @@ abd_alloc_pages(abd_t *abd, size_t size)
 	gfp_t gfp_comp = (gfp | __GFP_NORETRY | __GFP_COMP) & ~__GFP_RECLAIM;
 	int max_order = MIN(zfs_abd_scatter_max_order, MAX_ORDER - 1);
 	int nr_pages = abd_chunkcnt_for_bytes(size);
-	int chunks = 0, zones = 0;
+	int chunks = 0;
 	size_t remaining_size;
-	int nid = NUMA_NO_NODE;
+	int nid = curnode;
 	int alloc_pages = 0;
 
 	INIT_LIST_HEAD(&pages);
@@ -296,10 +296,6 @@ abd_alloc_pages(abd_t *abd, size_t size)
 
 		list_add_tail(&page->lru, &pages);
 
-		if ((nid != NUMA_NO_NODE) && (page_to_nid(page) != nid))
-			zones++;
-
-		nid = page_to_nid(page);
 		ABDSTAT_BUMP(abdstat_scatter_orders[order]);
 		chunks++;
 		alloc_pages += chunk_pages;
@@ -361,11 +357,6 @@ abd_alloc_pages(abd_t *abd, size_t size)
 	} else if (table.nents > 1) {
 		ABDSTAT_BUMP(abdstat_scatter_page_multi_chunk);
 		abd->abd_flags |= ABD_FLAG_MULTI_CHUNK;
-
-		if (zones) {
-			ABDSTAT_BUMP(abdstat_scatter_page_multi_zone);
-			abd->abd_flags |= ABD_FLAG_MULTI_ZONE;
-		}
 
 		ABD_SCATTER(abd).abd_sgl = table.sgl;
 		ABD_SCATTER(abd).abd_nents = table.nents;
