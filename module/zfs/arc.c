@@ -292,6 +292,7 @@
 #include <sys/zil.h>
 #include <sys/fm/fs/zfs.h>
 #ifdef _KERNEL
+#include <sys/migrate.h>
 #include <sys/shrinker.h>
 #include <sys/vmsystm.h>
 #include <sys/zpl.h>
@@ -3406,6 +3407,9 @@ arc_hdr_alloc(uint64_t spa, int32_t psize, int32_t lsize,
 	hdr->b_l1hdr.b_arc_access = 0;
 	hdr->b_l1hdr.b_bufcnt = 0;
 	hdr->b_l1hdr.b_buf = NULL;
+#if defined(_KERNEL)
+	hdr->b_l1hdr.b_node = NUMA_NO_NODE;
+#endif
 
 	/*
 	 * Allocate the hdr's buffer. This will contain either
@@ -6291,6 +6295,13 @@ top:
 
 			ASSERT(!embedded_bp || !BP_IS_HOLE(bp));
 
+#if defined(_KERNEL)
+			if (hdr->b_l1hdr.b_node == NUMA_NO_NODE) {
+				hdr->b_l1hdr.b_node = curnode;
+			} else if (curnode != hdr->b_l1hdr.b_node) {
+				spl_migrate(hdr->b_l1hdr.b_node);
+			}
+#endif
 			/* Get a buf with the desired data in it. */
 			rc = arc_buf_alloc_impl(hdr, spa, zb, private,
 			    encrypted_read, compressed_read, noauth_read,

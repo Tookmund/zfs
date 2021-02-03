@@ -154,6 +154,8 @@ typedef struct l1arc_buf_hdr {
 	kcondvar_t		b_cv;
 	uint8_t			b_byteswap;
 
+	/* What node the ARC header/buffer was allocated on */
+	uint16_t		b_node;
 
 	/* protected by arc state mutex */
 	arc_state_t		*b_state;
