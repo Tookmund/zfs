@@ -16,6 +16,7 @@ $(MODULE)-objs += spl-kmem.o
 $(MODULE)-objs += spl-kmem-cache.o
 $(MODULE)-objs += spl-kobj.o
 $(MODULE)-objs += spl-kstat.o
+$(MODULE)-objs += spl-migrate.o
 $(MODULE)-objs += spl-proc.o
 $(MODULE)-objs += spl-procfs-list.o
 $(MODULE)-objs += spl-taskq.o
