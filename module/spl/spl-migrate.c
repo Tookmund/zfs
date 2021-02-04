@@ -27,7 +27,7 @@
 void
 spl_migrate(int node)
 {
-	if (node >= nr_node_ids) {
+	if (node >= nr_node_ids || node < 0) {
 		printk(KERN_WARNING "SPL: Can't migrate to node %d!\n", node);
 		return;
 	}
@@ -36,8 +36,7 @@ spl_migrate(int node)
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
 	kernel_migrate_pages(0, nr_node_ids, nodemask_of_node(curnode),
 			nodemask_of_node(node));
-	if (curnode != node)
-	{
+	if (curnode != node) {
 		printk("SPL: Failed to migrate task %s!\n", curthread->comm);
 		dump_stack();
 	}
