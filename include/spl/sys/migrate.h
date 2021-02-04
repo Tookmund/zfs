@@ -21,6 +21,7 @@
 #ifndef _SPL_MIGRATE_H
 #define	_SPL_MIGRATE_H
 
+#include <linux/mempolicy.h>
 #include <linux/sched.h>
 
 extern void spl_migrate(int);

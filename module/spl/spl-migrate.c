@@ -24,12 +24,6 @@
 #include <sys/thread.h>
 #include <sys/migrate.h>
 
-static inline void
-spl_move_memory(int node)
-{
-
-}
-
 void
 spl_migrate(int node)
 {
@@ -40,7 +34,8 @@ spl_migrate(int node)
 	printk("SPL: Attempting  to migrate task %s from %d to %d\n",
 			curthread->comm, curnode, node);
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
-	spl_move_memory(node);
+	kernel_migrate_pages(0, nr_node_ids, nodemask_of_node(curnode),
+			nodemask_of_node(node));
 	if (curnode != node)
 	{
 		printk("SPL: Failed to migrate task %s!\n", curthread->comm);
