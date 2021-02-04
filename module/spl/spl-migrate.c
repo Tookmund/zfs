@@ -33,6 +33,10 @@ spl_move_memory(int node)
 void
 spl_migrate(int node)
 {
+	if (node >= nr_node_ids) {
+		printk(KERN_WARNING "SPL: Can't migrate to node %d!\n", node);
+		return;
+	}
 	printk("SPL: Attempting  to migrate task %s from %d to %d\n",
 			curthread->comm, curnode, node);
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
