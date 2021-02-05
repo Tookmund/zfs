@@ -1,6 +1,8 @@
 /*
- *  Copyright (C) 2021 Jacob Adams
  *  Copyright (C) 1991-2002 Linus Torvalds
+ *  Copyright (C) 2003,2004 Andi Kleen, SuSE Labs.
+ *  Copyright (C) 2005 Christoph Lameter, Silicon Graphics, Inc.
+ *  Copyright (C) 2021 Jacob Adams
  *
  *  This file is part of the SPL, Solaris Porting Layer.
  *  For details, see <http://zfsonlinux.org/>.
@@ -71,15 +73,15 @@ void
 spl_migrate(int node)
 {
 	if (node >= nr_node_ids || node < 0) {
-		printk(KERN_WARNING "SPL: Can't migrate to node %d!\n", node);
+		pr_warn("SPL: Can't migrate to node %d!\n", node);
 		return;
 	}
-	printk("SPL: Attempting  to migrate task %s from %d to %d\n",
+	printk("SPL: Attempting to migrate task %s from %d to %d\n",
 			curthread->comm, curnode, node);
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
 	spl_migrate_pages(curthread, node);
 	if (curnode != node) {
-		printk("SPL: Failed to migrate task %s!\n", curthread->comm);
+		pr_err(KERN_ERR "SPL: Failed to migrate task %s!\n", curthread->comm);
 		dump_stack();
 	}
 }
