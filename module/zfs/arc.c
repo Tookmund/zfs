@@ -6299,11 +6299,13 @@ top:
 			if (hdr->b_l1hdr.b_node == NUMA_NO_NODE) {
 				hdr->b_l1hdr.b_node = curnode;
 			} else if (curnode != hdr->b_l1hdr.b_node) {
-				spl_migrate(hdr->b_l1hdr.b_node);
 				unsigned long procsize = spl_get_proc_size();
 				uint64_t arcsize = hdr->b_psize;
-				if (procsize <= (arcsize/2))
+				printk("ARC: Process:%lu\tBuf:%llu", procsize, arcsize);
+				if (procsize <= (arcsize/2)) {
+					printk("ARC: Process is small enough, migrating");
 					spl_migrate(hdr->b_l1hdr.b_node);
+				}
 			}
 #endif
 			/* Get a buf with the desired data in it. */
