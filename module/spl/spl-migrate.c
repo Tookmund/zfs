@@ -87,3 +87,17 @@ spl_migrate(int node)
 }
 EXPORT_SYMBOL(spl_migrate);
 
+// get_mm_counter from include/linux/mm.h
+#define MMCOUNTER(stat)	((unsigned long)atomic_long_read(&mm->rss_stat.count[stat]))
+
+unsigned long
+spl_get_proc_size(void)
+{
+	struct mm_struct *mm = get_task_mm(curthread);
+	if (mm == NULL)
+		return 0;
+	// According to task_statm from fs/proc/task_mmu, this is resident memory
+	return (MMCOUNTER(MM_FILEPAGES) + MMCOUNTER(MM_SHMEMPAGES)
+		+ MMCOUNTER(MM_ANONPAGES)) * PAGE_SIZE;
+}
+EXPORT_SYMBOL(spl_get_proc_size);

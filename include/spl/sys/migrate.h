@@ -25,7 +25,9 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/security.h>
+#include <linux/mm_types_task.h>
 
 extern void spl_migrate(int);
+extern unsigned long spl_get_proc_size(void);
 
 #endif  /* _SPL_MIGRATE_H */
