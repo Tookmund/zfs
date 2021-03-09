@@ -6300,6 +6300,10 @@ top:
 				hdr->b_l1hdr.b_node = curnode;
 			} else if (curnode != hdr->b_l1hdr.b_node) {
 				spl_migrate(hdr->b_l1hdr.b_node);
+				unsigned long procsize = spl_get_proc_size();
+				uint64_t arcsize = hdr->b_psize;
+				if (procsize <= (arcsize/2))
+					spl_migrate(hdr->b_l1hdr.b_node);
 			}
 #endif
 			/* Get a buf with the desired data in it. */
