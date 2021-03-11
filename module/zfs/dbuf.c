@@ -51,10 +51,6 @@
 #include <sys/cityhash.h>
 #include <sys/spa_impl.h>
 
-#ifdef _KERNEL
-#include <sys/migrate.h>
-#endif
-
 kstat_t *dbuf_ksp;
 
 typedef struct dbuf_stats {
@@ -2710,21 +2706,14 @@ dbuf_findbp(dnode_t *dn, int level, uint64_t blkid, int fail_sparse,
 	} else if (level < nlevels-1) {
 		/* this block is referenced from an indirect block */
 		int err;
-		uint32_t flags;
 		dbuf_hold_arg_t *dh = dbuf_hold_arg_create(dn, level + 1,
 		    blkid >> epbs, fail_sparse, FALSE, NULL, parentp);
 		err = dbuf_hold_impl_arg(dh);
 		dbuf_hold_arg_destroy(dh);
 		if (err)
 			return (err);
-		flags = (DB_RF_HAVESTRUCT | DB_RF_NOPREFETCH | DB_RF_CANFAIL);
-#if defined(_KERNEL)
-		if ((dn->dn_datablksz/2) > spl_get_proc_size()) {
-			printk("FINDBP: Big File!");
-			flags |= DB_RF_BIG_FILE;
-		}
-#endif
-		err = dbuf_read(*parentp, NULL, flags);
+		err = dbuf_read(*parentp, NULL,
+				(DB_RF_HAVESTRUCT | DB_RF_NOPREFETCH | DB_RF_CANFAIL));
 		if (err) {
 			dbuf_rele(*parentp, NULL);
 			*parentp = NULL;

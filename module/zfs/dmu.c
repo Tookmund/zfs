@@ -52,6 +52,7 @@
 #include <sys/trace_dmu.h>
 #include <sys/zfs_rlock.h>
 #ifdef _KERNEL
+#include <sys/migrate.h>
 #include <sys/vmsystm.h>
 #include <sys/zfs_znode.h>
 #endif
@@ -516,6 +517,12 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT |
 	    DB_RF_NOPREFETCH;
 
+#ifdef _KERNEL
+	if ((dn->dn_datablksz/2) > spl_get_proc_size()) {
+		printk("DMU: Big File!");
+		dbuf_flags |= DB_RF_BIG_FILE;
+	}
+#endif
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	if (dn->dn_datablkshift) {
 		int blkshift = dn->dn_datablkshift;
