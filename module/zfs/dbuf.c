@@ -1401,7 +1401,7 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 
 	err = real_arc_read(zio, db->db_objset->os_spa, db->db_blkptr,
 	    dbuf_read_done, db, ZIO_PRIORITY_SYNC_READ, zio_flags,
-	    &aflags, &zb, (flags & DB_RF_BIG_FILE) == 0);
+	    &aflags, &zb, (flags & DB_RF_BIG_FILE) != 0);
 
 	return (err);
 }
