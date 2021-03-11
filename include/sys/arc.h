@@ -273,9 +273,16 @@ void arc_buf_thaw(arc_buf_t *buf);
 int arc_referenced(arc_buf_t *buf);
 #endif
 
-int arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
+int real_arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
     arc_read_done_func_t *done, void *private, zio_priority_t priority,
-    int flags, arc_flags_t *arc_flags, const zbookmark_phys_t *zb);
+    int flags, arc_flags_t *arc_flags, const zbookmark_phys_t *zb,
+	boolean_t big);
+#define arc_read(pio, spa, bp, done, private, priority, flags, arc_flags, \
+		zb) \
+	real_arc_read(pio, spa, bp, done, private, priority, flags, arc_flags, \
+			zb, 0)
+
+
 zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     blkptr_t *bp, arc_buf_t *buf, boolean_t l2arc, const zio_prop_t *zp,
     arc_write_done_func_t *ready, arc_write_done_func_t *child_ready,

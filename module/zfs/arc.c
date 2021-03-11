@@ -6162,9 +6162,10 @@ arc_read_done(zio_t *zio)
  * for readers of this block.
  */
 int
-arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
+real_arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
     arc_read_done_func_t *done, void *private, zio_priority_t priority,
-    int zio_flags, arc_flags_t *arc_flags, const zbookmark_phys_t *zb)
+    int zio_flags, arc_flags_t *arc_flags, const zbookmark_phys_t *zb,
+	boolean_t big)
 {
 	arc_buf_hdr_t *hdr = NULL;
 	kmutex_t *hash_lock = NULL;
@@ -6299,11 +6300,8 @@ top:
 			if (hdr->b_l1hdr.b_node == NUMA_NO_NODE) {
 				hdr->b_l1hdr.b_node = curnode;
 			} else if (curnode != hdr->b_l1hdr.b_node) {
-				unsigned long procsize = spl_get_proc_size();
-				uint64_t arcsize = hdr->b_psize*SPA_MINBLOCKSIZE;
-				printk("ARC: Process:%lu\tBuf:%llu", procsize, arcsize);
-				if (procsize <= (arcsize/2)) {
-					printk("ARC: Process is small enough, migrating");
+				if (big) {
+					printk("ARC: File is big enough, migrating");
 					spl_migrate(hdr->b_l1hdr.b_node);
 				}
 			}
@@ -9451,7 +9449,7 @@ param_set_arc_int(const char *buf, zfs_kernel_param_t *kp)
 
 EXPORT_SYMBOL(arc_buf_size);
 EXPORT_SYMBOL(arc_write);
-EXPORT_SYMBOL(arc_read);
+EXPORT_SYMBOL(real_arc_read);
 EXPORT_SYMBOL(arc_buf_info);
 EXPORT_SYMBOL(arc_getbuf_func);
 EXPORT_SYMBOL(arc_add_prune_callback);
