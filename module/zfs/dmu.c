@@ -517,12 +517,9 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT |
 	    DB_RF_NOPREFETCH;
 
-#ifdef _KERNEL
-	if ((dn->dn_datablksz/2) > spl_get_proc_size()) {
-		printk("DMU: Big File!");
+	if ((flags & DMU_READ_BIG_FILE) == 0)
 		dbuf_flags |= DB_RF_BIG_FILE;
-	}
-#endif
+
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	if (dn->dn_datablkshift) {
 		int blkshift = dn->dn_datablkshift;
@@ -997,6 +994,12 @@ dmu_read_impl(dnode_t *dn, uint64_t offset, uint64_t size,
 		bzero((char *)buf + newsz, size - newsz);
 		size = newsz;
 	}
+#ifdef _KERNEL
+	if ((dn->dn_datablksz/2) > spl_get_proc_size()) {
+		printk("DMU: Big File!");
+		flags |= DMU_READ_BIG_FILE;
+	}
+#endif
 
 	while (size > 0) {
 		uint64_t mylen = MIN(size, DMU_MAX_ACCESS / 2);
