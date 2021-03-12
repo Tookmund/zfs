@@ -916,7 +916,7 @@ zvol_read(void *arg)
 		if (bytes > volsize - uio.uio_loffset)
 			bytes = volsize - uio.uio_loffset;
 
-		error = dmu_read_uio_dnode(zv->zv_dn, &uio, bytes);
+		error = dmu_read_uio_dnode(zv->zv_dn, &uio, bytes, 0);
 		if (error) {
 			/* convert checksum errors into IO errors */
 			if (error == ECKSUM)

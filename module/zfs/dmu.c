@@ -994,15 +994,6 @@ dmu_read_impl(dnode_t *dn, uint64_t offset, uint64_t size,
 		bzero((char *)buf + newsz, size - newsz);
 		size = newsz;
 	}
-#ifdef _KERNEL
-	unsigned long procsize = spl_get_proc_size();
-	uint32_t data = dn->dn_datablksz*dn->dn_nblkptr;
-	printk("DMU: File %u Process %lu", data, procsize);
-	if (dn->dn_datablksz > procsize) {
-		printk("DMU: Big File!");
-		flags |= DMU_READ_BIG_FILE;
-	}
-#endif
 
 	while (size > 0) {
 		uint64_t mylen = MIN(size, DMU_MAX_ACCESS / 2);
@@ -1453,7 +1444,7 @@ xuio_stat_wbuf_nocopy(void)
 
 #ifdef _KERNEL
 int
-dmu_read_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size)
+dmu_read_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size, boolean_t big)
 {
 	dmu_buf_t **dbp;
 	int numbufs, i, err;
@@ -1466,7 +1457,7 @@ dmu_read_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size)
 	 * to be reading in parallel.
 	 */
 	err = dmu_buf_hold_array_by_dnode(dn, uio->uio_loffset, size,
-	    TRUE, FTAG, &numbufs, &dbp, 0);
+	    TRUE, FTAG, &numbufs, &dbp, big ? DMU_READ_BIG_FILE : 0);
 	if (err)
 		return (err);
 
@@ -1519,7 +1510,7 @@ dmu_read_uio_dnode(dnode_t *dn, uio_t *uio, uint64_t size)
  * because we don't have to find the dnode_t for the object.
  */
 int
-dmu_read_uio_dbuf(dmu_buf_t *zdb, uio_t *uio, uint64_t size)
+dmu_read_uio_dbuf(dmu_buf_t *zdb, uio_t *uio, uint64_t size, boolean_t big)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)zdb;
 	dnode_t *dn;
@@ -1530,7 +1521,7 @@ dmu_read_uio_dbuf(dmu_buf_t *zdb, uio_t *uio, uint64_t size)
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
-	err = dmu_read_uio_dnode(dn, uio, size);
+	err = dmu_read_uio_dnode(dn, uio, size, big);
 	DB_DNODE_EXIT(db);
 
 	return (err);
@@ -1554,7 +1545,7 @@ dmu_read_uio(objset_t *os, uint64_t object, uio_t *uio, uint64_t size)
 	if (err)
 		return (err);
 
-	err = dmu_read_uio_dnode(dn, uio, size);
+	err = dmu_read_uio_dnode(dn, uio, size, 0);
 
 	dnode_rele(dn, FTAG);
 

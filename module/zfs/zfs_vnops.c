@@ -69,6 +69,7 @@
 #include <sys/zpl.h>
 #include <sys/zil.h>
 #include <sys/sa_impl.h>
+#include <sys/migrate.h>
 
 /*
  * Programming rules.
@@ -402,7 +403,7 @@ mappedread(struct inode *ip, int nbytes, uio_t *uio)
 			put_page(pp);
 		} else {
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
-			    uio, bytes);
+			    uio, bytes, 0);
 		}
 
 		len -= bytes;
@@ -533,6 +534,7 @@ zfs_read(struct inode *ip, uio_t *uio, int ioflag, cred_t *cr)
 	}
 #endif /* HAVE_UIO_ZEROCOPY */
 
+	boolean_t big = zp->z_size > spl_get_proc_size();
 	while (n > 0) {
 		ssize_t nbytes = MIN(n, zfs_read_chunk_size -
 		    P2PHASE(uio->uio_loffset, zfs_read_chunk_size));
@@ -541,7 +543,7 @@ zfs_read(struct inode *ip, uio_t *uio, int ioflag, cred_t *cr)
 			error = mappedread(ip, nbytes, uio);
 		} else {
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
-			    uio, nbytes);
+			    uio, nbytes, big);
 		}
 
 		if (error) {
