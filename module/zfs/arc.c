@@ -6300,10 +6300,8 @@ top:
 			if (hdr->b_l1hdr.b_node == NUMA_NO_NODE) {
 				hdr->b_l1hdr.b_node = curnode;
 			} else if (curnode != hdr->b_l1hdr.b_node) {
-				if (big) {
-					printk("ARC: File is big enough, migrating");
+				if (big)
 					spl_migrate(hdr->b_l1hdr.b_node);
-				}
 			}
 #endif
 			/* Get a buf with the desired data in it. */
