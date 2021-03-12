@@ -995,7 +995,10 @@ dmu_read_impl(dnode_t *dn, uint64_t offset, uint64_t size,
 		size = newsz;
 	}
 #ifdef _KERNEL
-	if ((dn->dn_datablksz/2) > spl_get_proc_size()) {
+	unsigned long procsize = spl_get_proc_size();
+	uint32_t data = dn->dn_datablksz*dn->dn_nblkptr;
+	printk("DMU: File %u Process %lu", data, procsize);
+	if (dn->dn_datablksz > procsize) {
 		printk("DMU: Big File!");
 		flags |= DMU_READ_BIG_FILE;
 	}
