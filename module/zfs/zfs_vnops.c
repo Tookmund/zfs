@@ -534,7 +534,7 @@ zfs_read(struct inode *ip, uio_t *uio, int ioflag, cred_t *cr)
 	}
 #endif /* HAVE_UIO_ZEROCOPY */
 
-	boolean_t big = zp->z_size > spl_get_proc_size();
+	boolean_t big = spl_get_proc_size() < (zp->z_size/2);
 	while (n > 0) {
 		ssize_t nbytes = MIN(n, zfs_read_chunk_size -
 		    P2PHASE(uio->uio_loffset, zfs_read_chunk_size));
