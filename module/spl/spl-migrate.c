@@ -76,8 +76,6 @@ spl_migrate(int node)
 		pr_warn("SPL: Can't migrate to node %d!\n", node);
 		return;
 	}
-	printk("SPL: Attempting to migrate task %s from %d to %d\n",
-			curthread->comm, curnode, node);
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
 	spl_migrate_pages(curthread, node);
 	if (curnode != node) {
