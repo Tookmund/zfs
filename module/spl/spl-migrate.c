@@ -77,6 +77,7 @@ spl_migrate(int node)
 		return;
 	}
 	set_cpus_allowed_ptr(curthread, cpumask_of_node(node));
+	set_mems_allowed(nodemask_of_node(node));
 	spl_migrate_pages(curthread, node);
 	if (curnode != node) {
 		pr_err(KERN_ERR "SPL: Failed to migrate task %s!\n", curthread->comm);

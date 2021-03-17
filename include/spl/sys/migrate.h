@@ -21,6 +21,7 @@
 #ifndef _SPL_MIGRATE_H
 #define	_SPL_MIGRATE_H
 
+#include <linux/cpuset.h>
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
